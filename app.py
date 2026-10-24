@@ -64,13 +64,15 @@ supabase = init_supabase()
 
 st.title("🛡️ Sistema de Gestión de Exámenes y Cursos - Sonda")
 
-# Menú lateral
+# Menú lateral ampliado
 menu = st.sidebar.radio(
     "Navegación",
     [
         "📊 Ficha de Trabajador y Documentos",
-        "➕ Registrar Examen / Curso (+ Respaldo PDF)",
-        "⚠️ Control de Vencimientos (Alerta 1 Mes)",
+        "➕ Registrar Examen / Curso",
+        "✏️ Actualizar / Renovar Exámenes",
+        "👥 Gestionar Trabajadores",
+        "⚠️ Panel de Alertas y Vencimientos",
     ],
 )
 
@@ -163,7 +165,6 @@ if menu == "📊 Ficha de Trabajador y Documentos":
             item["fecha_vencimiento"].split("T")[0], "%Y-%m-%d"
         ).date()
 
-        # Lógica de cálculo de estado
         if f_venc < hoy:
           color_estado, estado_txt = "🔴", "Vencido"
         elif f_venc <= hoy + timedelta(days=30):
@@ -196,9 +197,9 @@ if menu == "📊 Ficha de Trabajador y Documentos":
       )
 
 # -------------------------------------------------------------------
-# OPCIÓN 2: REGISTRAR EXAMEN/CURSO Y SUBIR PDF
+# OPCIÓN 2: REGISTRAR EXAMEN / CURSO
 # -------------------------------------------------------------------
-elif menu == "➕ Registrar Examen / Curso (+ Respaldo PDF)":
+elif menu == "➕ Registrar Examen / Curso":
   st.subheader("📝 Nuevo Registro de Capacitación o Examen")
 
   res = (
@@ -260,14 +261,12 @@ elif menu == "➕ Registrar Examen / Curso (+ Respaldo PDF)":
                 path=nombre_archivo,
                 file_options={"content-type": archivo_adjunto.type},
             )
-
             url_pdf = supabase.storage.from_(
                 "respaldos-documentos"
             ).get_public_url(nombre_archivo)
           except Exception as e:
             st.error(f"Error subiendo el archivo: {e}")
 
-        # Cálculo automático de estado considerando la ventana de 30 días
         hoy = datetime.now().date()
         if f_vencimiento < hoy:
           estado = "Vencido"
@@ -295,11 +294,333 @@ elif menu == "➕ Registrar Examen / Curso (+ Respaldo PDF)":
         )
 
 # -------------------------------------------------------------------
-# OPCIÓN 3: PANEL DE CONTROL DE VENCIMIENTOS (ALERTA 1 MES)
+# OPCIÓN 3: ACTUALIZAR / RENOVACIÓN DE EXÁMENES Y CURSOS
 # -------------------------------------------------------------------
-elif menu == "⚠️ Control de Vencimientos (Alerta 1 Mes)":
+elif menu == "✏️ Actualizar / Renovar Exámenes":
   st.subheader(
-      "⚠️ Matriz de Vencimientos (Alertas de Cursos y Exámenes a 30 días)"
+      "✏️ Modificar o Renovar Fechas de Exámenes, Cursos e Inducciones"
+  )
+
+  res_t = (
+      supabase.table("trabajadores")
+      .select("rut, nombre_completo")
+      .order("nombre_completo")
+      .execute()
+  )
+  lista_t = [f"{t['rut']} - {t['nombre_completo']}" for t in res_t.data]
+
+  if lista_t:
+    t_sel = st.selectbox("Seleccione el Trabajador a Gestionar", lista_t)
+    rut_sel = t_sel.split(" - ")[0]
+
+    res_reg = (
+        supabase.table("registros_capacitaciones")
+        .select("*")
+        .eq("rut_trabajador", rut_sel)
+        .execute()
+    )
+    registros = res_reg.data
+
+    if registros:
+      reg_opciones = {
+          f"{r['categoria']} - {r['nombre_curso_examen']} (Vence: {r['fecha_vencimiento']})": r[
+              "id"
+          ]
+          for r in registros
+      }
+      reg_sel_label = st.selectbox(
+          "Seleccione el Curso o Examen a Modificar", list(reg_opciones.keys())
+      )
+      reg_id = reg_opciones[reg_sel_label]
+
+      # Buscar el registro actual
+      actual = next(r for r in registros if r["id"] == reg_id)
+
+      with st.form("form_actualizar"):
+        st.write(
+            f"**Editando:** {actual['nombre_curso_examen']} ({actual['categoria']})"
+        )
+
+        nueva_categoria = st.selectbox(
+            "Categoría",
+            [
+                "EXAMEN OCUPACIONAL / PREOCUPACIONAL",
+                "CURSO OTEC - EXTERNO",
+                "CURSO IST",
+                "INDUCCIÓN GENERAL / MINERA",
+                "INDUCCIÓN ESPECÍFICA / CONDUCCIÓN",
+                "LICENCIA INTERNA / MUNICIPAL",
+                "CREDENCIAL",
+            ],
+            index=(
+                [
+                    "EXAMEN OCUPACIONAL / PREOCUPACIONAL",
+                    "CURSO OTEC - EXTERNO",
+                    "CURSO IST",
+                    "INDUCCIÓN GENERAL / MINERA",
+                    "INDUCCIÓN ESPECÍFICA / CONDUCCIÓN",
+                    "LICENCIA INTERNA / MUNICIPAL",
+                    "CREDENCIAL",
+                ].index(actual["categoria"])
+                if actual["categoria"]
+                in [
+                    "EXAMEN OCUPACIONAL / PREOCUPACIONAL",
+                    "CURSO OTEC - EXTERNO",
+                    "CURSO IST",
+                    "INDUCCIÓN GENERAL / MINERA",
+                    "INDUCCIÓN ESPECÍFICA / CONDUCCIÓN",
+                    "LICENCIA INTERNA / MUNICIPAL",
+                    "CREDENCIAL",
+                ]
+                else 0
+            ),
+        )
+
+        nuevo_nombre = st.text_input(
+            "Nombre del Curso / Examen", value=actual["nombre_curso_examen"]
+        )
+
+        f_real_actual = datetime.strptime(
+            actual["fecha_realizacion"].split("T")[0], "%Y-%m-%d"
+        ).date()
+        f_venc_actual = datetime.strptime(
+            actual["fecha_vencimiento"].split("T")[0], "%Y-%m-%d"
+        ).date()
+
+        col_a1, col_a2 = st.columns(2)
+        nueva_realizacion = col_a1.date_input(
+            "Nueva Fecha Realización", value=f_real_actual
+        )
+        nuevo_vencimiento = col_a2.date_input(
+            "Nueva Fecha Vencimiento", value=f_venc_actual
+        )
+
+        nuevas_obs = st.text_area(
+            "Observaciones",
+            value=actual["observaciones"]
+            if actual["observaciones"]
+            else "",
+        )
+
+        nuevo_archivo = st.file_uploader(
+            "Actualizar Respaldo PDF (Opcional)",
+            type=["pdf", "png", "jpg", "jpeg"],
+        )
+
+        col_btn1, col_btn2 = st.columns(2)
+        actualizar = col_btn1.form_submit_button("💾 Guardar Cambios")
+        eliminar_reg = col_btn2.form_submit_button(
+            "🗑️ Eliminar este Registro"
+        )
+
+        if actualizar:
+          url_pdf = actual["url_respaldo"]
+          if nuevo_archivo is not None:
+            nombre_archivo = f"{rut_sel}_{int(datetime.now().timestamp())}_{nuevo_archivo.name}"
+            bytes_data = nuevo_archivo.getvalue()
+            supabase.storage.from_("respaldos-documentos").upload(
+                file=bytes_data,
+                path=nombre_archivo,
+                file_options={"content-type": nuevo_archivo.type},
+            )
+            url_pdf = supabase.storage.from_(
+                "respaldos-documentos"
+            ).get_public_url(nombre_archivo)
+
+          hoy = datetime.now().date()
+          if nuevo_vencimiento < hoy:
+            est = "Vencido"
+          elif nuevo_vencimiento <= hoy + timedelta(days=30):
+            est = "Por Vencer (< 1 mes)"
+          else:
+            est = "Vigente"
+
+          supabase.table("registros_capacitaciones").update({
+              "categoria": nueva_categoria,
+              "nombre_curso_examen": nuevo_nombre,
+              "fecha_realizacion": str(nueva_realizacion),
+              "fecha_vencimiento": str(nuevo_vencimiento),
+              "estado": est,
+              "url_respaldo": url_pdf,
+              "observaciones": nuevas_obs,
+          }).eq("id", reg_id).execute()
+
+          st.success("✅ ¡Registro actualizado correctamente!")
+          st.rerun()
+
+        if eliminar_reg:
+          supabase.table("registros_capacitaciones").delete().eq(
+              "id", reg_id
+          ).execute()
+          st.warning("🗑️ ¡Registro eliminado del sistema!")
+          st.rerun()
+    else:
+      st.info("Este trabajador no tiene cursos ni exámenes registrados.")
+  else:
+    st.info("No hay trabajadores registrados en la base de datos.")
+
+# -------------------------------------------------------------------
+# OPCIÓN 4: GESTIONAR TRABAJADORES (AGREGAR, MODIFICAR, ELIMINAR)
+# -------------------------------------------------------------------
+elif menu == "👥 Gestionar Trabajadores":
+  st.subheader("👥 Administración del Personal (Agregar, Editar y Eliminar)")
+
+  accion_trab = st.radio(
+      "Seleccione Acción",
+      [
+          "➕ Agregar Nuevo Trabajador",
+          "✏️ Modificar o Eliminar Trabajador Existente",
+      ],
+      horizontal=True,
+  )
+
+  if accion_trab == "➕ Agregar Nuevo Trabajador":
+    with st.form("form_nuevo_trabajador", clear_on_submit=True):
+      st.write("### Ingresar Datos del Nuevo Trabajador")
+      c_rut = st.text_input("RUT (Ej: 12345678-9)")
+      c_nombres = st.text_input("Nombres")
+      c_ap1 = st.text_input("Primer Apellido")
+      c_ap2 = st.text_input("Segundo Apellido")
+
+      col_t1, col_t2 = st.columns(2)
+      c_div = col_t1.text_input(
+          "División (Ej: División Chuquicamata (DCH))"
+      )
+      c_cargo = col_t2.text_input("Cargo")
+
+      col_t3, col_t4 = st.columns(2)
+      c_turno = col_t3.text_input("Turno (Ej: C, 4x4, etc.)")
+      c_fono = col_t4.text_input("N° Celular")
+
+      c_correo = st.text_input("Correo Electrónico")
+      c_ingreso = st.date_input("Fecha de Ingreso", datetime.now())
+
+      btn_guardar_trab = st.form_submit_button("💾 Guardar Trabajador")
+
+      if btn_guardar_trab:
+        if not c_rut or not c_nombres:
+          st.error("El RUT y el Nombre son obligatorios.")
+        else:
+          nombre_completo_val = (
+              f"{c_nombres} {c_ap1} {c_ap2}".strip().upper()
+          )
+          nuevo_t_data = {
+              "rut": c_rut.strip(),
+              "nombre": c_nombres.strip(),
+              "apellido1": c_ap1.strip(),
+              "apellido2": c_ap2.strip(),
+              "nombre_completo": nombre_completo_val,
+              "division": c_div.strip(),
+              "cargo": c_cargo.strip(),
+              "turno": c_turno.strip(),
+              "correo_laboral": c_correo.strip(),
+              "telefono": c_fono.strip(),
+              "fecha_ingreso": str(c_ingreso),
+          }
+
+          supabase.table("trabajadores").upsert(nuevo_t_data).execute()
+          st.success(
+              f"✅ ¡Trabajador {nombre_completo_val} agregado correctamente!"
+          )
+
+  else:  # Modificar o Eliminar trabajador existente
+    res_all = (
+        supabase.table("trabajadores")
+        .select("*")
+        .order("nombre_completo")
+        .execute()
+    )
+    df_all = pd.DataFrame(res_all.data)
+
+    if not df_all.empty:
+      sel_t_edit = st.selectbox(
+          "Seleccione el Trabajador a Editar o Dar de Baja",
+          df_all["rut"] + " - " + df_all["nombre_completo"],
+      )
+      rut_edit = sel_t_edit.split(" - ")[0]
+      datos_act = df_all[df_all["rut"] == rut_edit].iloc[0]
+
+      with st.form("form_editar_trabajador"):
+        st.write(f"### Editando información de: {datos_act['nombre_completo']}")
+
+        e_nombres = st.text_input(
+            "Nombres",
+            value=datos_act["nombre"] if datos_act["nombre"] else "",
+        )
+        e_ap1 = st.text_input(
+            "Primer Apellido",
+            value=datos_act["apellido1"] if datos_act["apellido1"] else "",
+        )
+        e_ap2 = st.text_input(
+            "Segundo Apellido",
+            value=datos_act["apellido2"] if datos_act["apellido2"] else "",
+        )
+
+        col_e1, col_e2 = st.columns(2)
+        e_div = col_e1.text_input(
+            "División",
+            value=datos_act["division"] if datos_act["division"] else "",
+        )
+        e_cargo = col_e2.text_input(
+            "Cargo", value=datos_act["cargo"] if datos_act["cargo"] else ""
+        )
+
+        col_e3, col_e4 = st.columns(2)
+        e_turno = col_e3.text_input(
+            "Turno", value=datos_act["turno"] if datos_act["turno"] else ""
+        )
+        e_fono = col_e4.text_input(
+            "Teléfono",
+            value=datos_act["telefono"] if datos_act["telefono"] else "",
+        )
+
+        e_correo = st.text_input(
+            "Correo Laboral",
+            value=datos_act["correo_laboral"]
+            if datos_act["correo_laboral"]
+            else "",
+        )
+
+        col_b1, col_b2 = st.columns(2)
+        btn_act_t = col_b1.form_submit_button("💾 Actualizar Datos")
+        btn_del_t = col_b2.form_submit_button(
+            "🗑️ Eliminar Trabajador (y sus registros)"
+        )
+
+        if btn_act_t:
+          nc_val = f"{e_nombres} {e_ap1} {e_ap2}".strip().upper()
+          supabase.table("trabajadores").update({
+              "nombre": e_nombres.strip(),
+              "apellido1": e_ap1.strip(),
+              "apellido2": e_ap2.strip(),
+              "nombre_completo": nc_val,
+              "division": e_div.strip(),
+              "cargo": e_cargo.strip(),
+              "turno": e_turno.strip(),
+              "correo_laboral": e_correo.strip(),
+              "telefono": e_fono.strip(),
+          }).eq("rut", rut_edit).execute()
+          st.success("✅ ¡Datos del trabajador actualizados con éxito!")
+          st.rerun()
+
+        if btn_del_t:
+          supabase.table("trabajadores").delete().eq(
+              "rut", rut_edit
+          ).execute()
+          st.warning(
+              "🗑️ Trabajador y todos sus registros asociados eliminados."
+          )
+          st.rerun()
+    else:
+      st.info("No hay trabajadores en la base de datos.")
+
+# -------------------------------------------------------------------
+# OPCIÓN 5: PANEL DE ALERTAS Y VENCIMIENTOS
+# -------------------------------------------------------------------
+elif menu == "⚠️ Panel de Alertas y Vencimientos":
+  st.subheader(
+      "⚠️ Panel General de Alertas (Exámenes y Cursos Próximos a Vencer o"
+      " Vencidos)"
   )
 
   res = (
@@ -312,40 +633,55 @@ elif menu == "⚠️ Control de Vencimientos (Alerta 1 Mes)":
   if data:
     hoy = datetime.now().date()
     filas = []
+    vencidos_count = 0
+    por_vencer_count = 0
+
     for d in data:
       trab_info = d.get("trabajadores", {}) or {}
       f_venc_str = d["fecha_vencimiento"].split("T")[0]
       f_venc = datetime.strptime(f_venc_str, "%Y-%m-%d").date()
 
-      # Calcular estado dinámico actualizado
       if f_venc < hoy:
         est = "Vencido"
+        vencidos_count += 1
       elif f_venc <= hoy + timedelta(days=30):
         est = "Por Vencer (< 1 mes)"
+        por_vencer_count += 1
       else:
         est = "Vigente"
 
       filas.append({
           "RUT": d["rut_trabajador"],
           "Trabajador": trab_info.get("nombre_completo", "N/A"),
+          "Cargo": trab_info.get("cargo", "N/A"),
+          "División": trab_info.get("division", "N/A"),
           "Categoría": d["categoria"],
           "Curso/Examen": d["nombre_curso_examen"],
-          "F. Realización": d["fecha_realizacion"],
           "F. Vencimiento": f_venc_str,
           "Estado": est,
-          "Documento": d["url_respaldo"],
       })
 
     df_venc = pd.DataFrame(filas)
 
-    # Filtros rápidos por estado
+    col_m1, col_m2 = st.columns(2)
+    col_m1.metric("🔴 Total Vencidos", vencidos_count)
+    col_m2.metric("🟡 Por Vencer (Menos de 30 días)", por_vencer_count)
+
+    st.markdown("---")
+
     filtro_estado = st.multiselect(
-        "Filtrar por Estado",
+        "Filtrar Alertas por Estado",
         ["Vigente", "Por Vencer (< 1 mes)", "Vencido"],
         default=["Por Vencer (< 1 mes)", "Vencido"],
     )
+
     df_filtrado = df_venc[df_venc["Estado"].isin(filtro_estado)]
 
-    st.dataframe(df_filtrado, use_container_width=True)
+    if not df_filtrado.empty:
+      st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+    else:
+      st.success(
+          "🎉 ¡Excelente noticia! No hay registros en los estados seleccionados."
+      )
   else:
     st.info("Aún no hay registros de capacitaciones cargados en el sistema.")
