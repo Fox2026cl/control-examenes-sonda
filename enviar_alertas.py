@@ -1,8 +1,9 @@
 import email.mime.multipart
 import email.mime.text
 import os
-from datetime import datetime, timedelta
 import smtplib
+import sys
+from datetime import datetime, timedelta
 from supabase import create_client
 
 # Cargar credenciales desde las variables de entorno de GitHub
@@ -11,23 +12,44 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
-# Destinatarios del reporte (puedes agregar más correos separados por comas si lo deseas)
+# Verificar que existan las credenciales
+faltantes = []
+if not SUPABASE_URL:
+  faltantes.append("SUPABASE_URL")
+if not SUPABASE_KEY:
+  faltantes.append("SUPABASE_KEY")
+if not EMAIL_SENDER:
+  faltantes.append("EMAIL_SENDER")
+if not EMAIL_PASSWORD:
+  faltantes.append("EMAIL_PASSWORD")
+
+if faltantes:
+  print(
+      f"❌ ERROR CRÍTICO: Faltan las siguientes variables en GitHub Secrets:"
+      f" {', '.join(faltantes)}"
+  )
+  sys.exit(1)
+
+# Destinatarios del reporte
 DESTINATARIOS = ["miguel.alquinta@gmail.com"]
 
 
 def generar_reporte_y_enviar():
-  supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-  # Consultar los registros y datos de los trabajadores
-  res = (
-      supabase.table("registros_capacitaciones")
-      .select("*, trabajadores(nombre_completo, cargo, division)")
-      .execute()
-  )
-  data = res.data
+  print("🔄 Conectando a Supabase...")
+  try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    res = (
+        supabase.table("registros_capacitaciones")
+        .select("*, trabajadores(nombre_completo, cargo, division)")
+        .execute()
+    )
+    data = res.data
+  except Exception as e:
+    print(f"❌ Error al consultar Supabase: {e}")
+    sys.exit(1)
 
   if not data:
-    print("No hay registros en la base de datos.")
+    print("ℹ️ No hay registros en la base de datos.")
     return
 
   hoy = datetime.now().date()
@@ -52,6 +74,11 @@ def generar_reporte_y_enviar():
       vencidos.append(item)
     elif f_venc <= hoy + timedelta(days=30):
       por_vencer.append(item)
+
+  print(
+      f"📊 Registros encontrados -> Vencidos: {len(vencidos)} | Por Vencer:"
+      f" {len(por_vencer)}"
+  )
 
   if not vencidos and not por_vencer:
     print(
@@ -120,15 +147,16 @@ def generar_reporte_y_enviar():
 
   msg.attach(email.mime.text.MIMEText(cuerpo_html, "html"))
 
+  print("📧 Conectando al servidor SMTP seguro (Puerto 465)...")
   try:
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
+    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
     server.login(EMAIL_SENDER, EMAIL_PASSWORD)
     server.sendmail(EMAIL_SENDER, DESTINATARIOS, msg.as_string())
     server.quit()
     print("✅ ¡Correo de alerta semanal enviado con éxito!")
   except Exception as e:
     print(f"❌ Error al enviar el correo: {e}")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
