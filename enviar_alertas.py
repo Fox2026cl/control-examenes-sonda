@@ -12,7 +12,7 @@ EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 # Destinatarios del reporte (puedes agregar más correos separados por comas si lo deseas)
-DESTINATARIOS = [miguel.alquinta@gmail.com]
+DESTINATARIOS = ["miguel.alquinta@gmail.com"]
 
 
 def generar_reporte_y_enviar():
