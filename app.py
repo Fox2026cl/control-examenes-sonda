@@ -10,6 +10,10 @@ st.set_page_config(
     page_icon="📋",
 )
 
+# --- CONFIGURACIÓN DE CREDENCIALES DE ACCESO ---
+USUARIO_CORRECTO = "admin"
+PASSWORD_CORRECTO = "Sonda2026!"  # 🔒 Puedes cambiar esta contraseña por la que gustes
+
 # --- ESTILOS CSS PERSONALIZADOS ---
 st.markdown(
     """
@@ -45,6 +49,14 @@ st.markdown(
             word-break: break-word;
             margin-top: 2px;
         }
+        .login-box {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
     </style>
 """,
     unsafe_allow_html=True,
@@ -62,9 +74,60 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# --- GESTIÓN DE SESIÓN (LOGIN) ---
+if "autenticado" not in st.session_state:
+  st.session_state["autenticado"] = False
+
+
+def mostrar_login():
+  st.markdown("<br><br>", unsafe_allow_html=True)
+  col1, col2, col3 = st.columns([1, 2, 1])
+
+  with col2:
+    st.image(
+        "https://img.icons8.com/color/96/shield-protection.png", width=80
+    )
+    st.title("Acceso Privado - Sonda")
+    st.subheader("Sistema de Control de Exámenes y Capacitaciones")
+
+    with st.form("form_login"):
+      usuario = st.text_input("Usuario")
+      password = st.text_input("Contraseña", type="password")
+      btn_login = st.form_submit_button("🔑 Iniciar Sesión")
+
+      if btn_login:
+        if (
+            usuario.strip() == USUARIO_CORRECTO
+            and password.strip() == PASSWORD_CORRECTO
+        ):
+          st.session_state["autenticado"] = True
+          st.success("¡Acceso concedido!")
+          st.rerun()
+        else:
+          st.error("❌ Usuario o contraseña incorrectos.")
+
+
+# Si el usuario NO se ha autenticado, muestra solo el login y se detiene
+if not st.session_state["autenticado"]:
+  mostrar_login()
+  st.stop()
+
+# -------------------------------------------------------------------
+# SISTEMA PRINCIPAL (ACCESIBLE SOLO LUEGO DE INICIAR SESIÓN)
+# -------------------------------------------------------------------
+
 st.title("🛡️ Sistema de Gestión de Exámenes y Cursos - Sonda")
 
-# Menú lateral ampliado
+# Botón de Cerrar Sesión en el menú lateral
+st.sidebar.markdown("### 👤 Sesión Iniciada")
+st.sidebar.write(f"**Usuario:** `{USUARIO_CORRECTO}`")
+if st.sidebar.button("🚪 Cerrar Sesión"):
+  st.session_state["autenticado"] = False
+  st.rerun()
+
+st.sidebar.markdown("---")
+
+# Menú lateral
 menu = st.sidebar.radio(
     "Navegación",
     [
@@ -333,7 +396,6 @@ elif menu == "✏️ Actualizar / Renovar Exámenes":
       )
       reg_id = reg_opciones[reg_sel_label]
 
-      # Buscar el registro actual
       actual = next(r for r in registros if r["id"] == reg_id)
 
       with st.form("form_actualizar"):
@@ -523,7 +585,7 @@ elif menu == "👥 Gestionar Trabajadores":
               f"✅ ¡Trabajador {nombre_completo_val} agregado correctamente!"
           )
 
-  else:  # Modificar o Eliminar trabajador existente
+  else:
     res_all = (
         supabase.table("trabajadores")
         .select("*")
