@@ -12,7 +12,7 @@ st.set_page_config(
 
 # --- CONFIGURACIÓN DE CREDENCIALES DE ACCESO ---
 USUARIO_CORRECTO = "admin"
-PASSWORD_CORRECTO = "Sonda2026!"  # 🔒 Puedes cambiar esta contraseña por la que gustes
+PASSWORD_CORRECTO = "Sonda2026!"
 
 # --- ESTILOS CSS PERSONALIZADOS ---
 st.markdown(
@@ -43,19 +43,11 @@ st.markdown(
             letter-spacing: 0.5px;
         }
         .worker-value {
-            font-size: 15px;
+            font-size: 14px;
             color: #212529;
             font-weight: 700;
             word-break: break-word;
             margin-top: 2px;
-        }
-        .login-box {
-            max-width: 400px;
-            margin: 50px auto;
-            padding: 30px;
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
     </style>
 """,
@@ -107,18 +99,16 @@ def mostrar_login():
           st.error("❌ Usuario o contraseña incorrectos.")
 
 
-# Si el usuario NO se ha autenticado, muestra solo el login y se detiene
 if not st.session_state["autenticado"]:
   mostrar_login()
   st.stop()
 
 # -------------------------------------------------------------------
-# SISTEMA PRINCIPAL (ACCESIBLE SOLO LUEGO DE INICIAR SESIÓN)
+# SISTEMA PRINCIPAL
 # -------------------------------------------------------------------
 
 st.title("🛡️ Sistema de Gestión de Exámenes y Cursos - Sonda")
 
-# Botón de Cerrar Sesión en el menú lateral
 st.sidebar.markdown("### 👤 Sesión Iniciada")
 st.sidebar.write(f"**Usuario:** `{USUARIO_CORRECTO}`")
 if st.sidebar.button("🚪 Cerrar Sesión"):
@@ -127,7 +117,6 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 
 st.sidebar.markdown("---")
 
-# Menú lateral
 menu = st.sidebar.radio(
     "Navegación",
     [
@@ -140,7 +129,7 @@ menu = st.sidebar.radio(
 )
 
 # -------------------------------------------------------------------
-# OPCIÓN 1: FICHA DE TRABAJADOR Y SUS DOCUMENTOS
+# OPCIÓN 1: FICHA DETALLADA DE TRABAJADOR
 # -------------------------------------------------------------------
 if menu == "📊 Ficha de Trabajador y Documentos":
   st.subheader("🔍 Búsqueda de Trabajador")
@@ -155,63 +144,141 @@ if menu == "📊 Ficha de Trabajador y Documentos":
 
   if not df_trabajadores.empty:
     opcion_trabajador = st.selectbox(
-        "Seleccione un Trabajador para revisar:",
+        "Seleccione un Trabajador para revisar su Ficha Completa:",
         df_trabajadores["rut"] + " - " + df_trabajadores["nombre_completo"],
     )
     rut_sel = opcion_trabajador.split(" - ")[0]
-
     trab = df_trabajadores[df_trabajadores["rut"] == rut_sel].iloc[0]
 
     st.markdown("---")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # Resumen Superior
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(
+        f'<div class="worker-card"><div'
+        ' class="worker-label">Nombre</div><div'
+        f' class="worker-value">{trab.get("nombre_completo", "N/A")}</div></div>',
+        unsafe_allow_html=True,
+    )
+    c2.markdown(
+        f'<div class="worker-card"><div class="worker-label">RUT</div><div'
+        f' class="worker-value">{trab.get("rut", "N/A")}</div></div>',
+        unsafe_allow_html=True,
+    )
+    c3.markdown(
+        f'<div class="worker-card"><div class="worker-label">Cargo'
+        ' Sonda</div><div'
+        f' class="worker-value">{trab.get("cargo_sonda") or trab.get("cargo") or "N/A"}</div></div>',
+        unsafe_allow_html=True,
+    )
+    c4.markdown(
+        f'<div class="worker-card"><div'
+        ' class="worker-label">División</div><div'
+        f' class="worker-value">{trab.get("division", "N/A")}</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    with col1:
-      st.markdown(
-          f"""
-            <div class="worker-card">
-                <div class="worker-label">Nombre Completo</div>
-                <div class="worker-value">{trab['nombre_completo']}</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    with col2:
-      st.markdown(
-          f"""
-            <div class="worker-card">
-                <div class="worker-label">RUT</div>
-                <div class="worker-value">{trab['rut']}</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
+    # Pestañas de Ficha Expandida
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📋 Información General y Contrato",
+        "👤 Datos Personales y Contacto",
+        "🚗 Licencia y Conducción",
+        "🦺 Salud y Riesgo Ocupacional (GES)",
+    ])
 
-    with col3:
-      st.markdown(
-          f"""
-            <div class="worker-card">
-                <div class="worker-label">Cargo</div>
-                <div class="worker-value">{str(trab['cargo'])}</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
+    with tab1:
+      col_a, col_b = st.columns(2)
+      with col_a:
+        st.write(
+            f"**Número de Contrato:** {trab.get('numero_contrato') or 'N/A'}"
+        )
+        st.write(
+            f"**Cargo Codelco:** {trab.get('cargo_codelco') or 'N/A'}"
+        )
+        st.write(f"**Cargo Sonda:** {trab.get('cargo_sonda') or 'N/A'}")
+        st.write(f"**Fecha Ingreso:** {trab.get('fecha_ingreso') or 'N/A'}")
+      with col_b:
+        st.write(
+            f"**Jornada Laboral:** {trab.get('jornada_laboral') or 'N/A'}"
+        )
+        st.write(f"**Turno:** {trab.get('turno') or 'N/A'}")
+        st.write(
+            f"**Experiencia en Minería:**"
+            f" {trab.get('experiencia_mineria') or 'N/A'}"
+        )
+        st.write(
+            f"**Experiencia en el Cargo:**"
+            f" {trab.get('experiencia_cargo') or 'N/A'}"
+        )
+        st.write(
+            f"**Obligación de Informar (ODI):**"
+            f" {trab.get('obligacion_informar') or 'N/A'}"
+        )
 
-    with col4:
-      st.markdown(
-          f"""
-            <div class="worker-card">
-                <div class="worker-label">División</div>
-                <div class="worker-value">{str(trab['division'])}</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
+    with tab2:
+      col_c, col_d = st.columns(2)
+      with col_c:
+        st.write(
+            f"**Fecha Nacimiento:** {trab.get('fecha_nacimiento') or 'N/A'}"
+        )
+        st.write(f"**Edad:** {trab.get('edad') or 'N/A'}")
+        st.write(f"**Sexo:** {trab.get('sexo') or 'N/A'}")
+        st.write(f"**Estado Civil:** {trab.get('estado_civil') or 'N/A'}")
+        st.write(f"**Nacionalidad:** {trab.get('nacionalidad') or 'N/A'}")
+        st.write(f"**Dirección:** {trab.get('direccion') or 'N/A'}")
+      with col_d:
+        st.write(
+            f"**Celular Empresa:** {trab.get('celular_empresa') or 'N/A'}"
+        )
+        st.write(
+            f"**Celular Personal:** {trab.get('celular_personal') or 'N/A'}"
+        )
+        st.write(
+            f"**Correo Laboral:** {trab.get('correo_laboral') or 'N/A'}"
+        )
+        st.write(
+            f"**Correo Personal:** {trab.get('correo_personal') or 'N/A'}"
+        )
+
+    with tab3:
+      col_e, col_f = st.columns(2)
+      with col_e:
+        st.write(
+            f"**Licencia Municipal:**"
+            f" {trab.get('licencia_municipal') or 'N/A'}"
+        )
+        st.write(
+            f"**Clase Licencia:**"
+            f" {trab.get('clase_licencia_municipal') or 'N/A'}"
+        )
+        st.write(
+            f"**Municipalidad:** {trab.get('municipalidad') or 'N/A'}"
+        )
+      with col_f:
+        st.write(f"**Restricciones:** {trab.get('restriccion') or 'N/A'}")
+        st.write(
+            f"**Hoja de Vida Conductor:**"
+            f" {trab.get('hoja_vida_conductor') or 'N/A'}"
+        )
+
+    with tab4:
+      col_g, col_h = st.columns(2)
+      with col_g:
+        st.write(
+            f"**Grupo Exposición Similar (GES):**"
+            f" {trab.get('grupo_exposicion_similar') or 'N/A'}"
+        )
+        st.write(f"**Nivel GES:** {trab.get('nivel_ges') or 'N/A'}")
+      with col_h:
+        st.write(
+            f"**HID Credencial:** {trab.get('hid_credencial') or 'N/A'}"
+        )
+        st.write(f"**TAG:** {trab.get('tag') or 'N/A'}")
 
     st.markdown("---")
-    st.subheader("📁 Historial de Exámenes, Inducciones y Capacitaciones")
+    st.subheader("📁 Cursos, Inducciones y Exámenes Ocupacionales")
 
     res_reg = (
         supabase.table("registros_capacitaciones")
@@ -231,10 +298,7 @@ if menu == "📊 Ficha de Trabajador y Documentos":
         if f_venc < hoy:
           color_estado, estado_txt = "🔴", "Vencido"
         elif f_venc <= hoy + timedelta(days=30):
-          color_estado, estado_txt = (
-              "🟡",
-              "Por Vencer (< 1 mes)",
-          )
+          color_estado, estado_txt = "🟡", "Por Vencer (< 1 mes)"
         else:
           color_estado, estado_txt = "🟢", "Vigente"
 
@@ -357,7 +421,7 @@ elif menu == "➕ Registrar Examen / Curso":
         )
 
 # -------------------------------------------------------------------
-# OPCIÓN 3: ACTUALIZAR / RENOVACIÓN DE EXÁMENES Y CURSOS
+# OPCIÓN 3: ACTUALIZAR / RENOVACIÓN
 # -------------------------------------------------------------------
 elif menu == "✏️ Actualizar / Renovar Exámenes":
   st.subheader(
@@ -522,46 +586,91 @@ elif menu == "✏️ Actualizar / Renovar Exámenes":
     st.info("No hay trabajadores registrados en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 4: GESTIONAR TRABAJADORES (AGREGAR, MODIFICAR, ELIMINAR)
+# OPCIÓN 4: GESTIONAR TRABAJADORES (CON TODOS LOS CAMPOS DE LA PLANILLA)
 # -------------------------------------------------------------------
 elif menu == "👥 Gestionar Trabajadores":
-  st.subheader("👥 Administración del Personal (Agregar, Editar y Eliminar)")
+  st.subheader(
+      "👥 Administración del Personal (Ficha Completa - Columnas FD a GF)"
+  )
 
   accion_trab = st.radio(
       "Seleccione Acción",
       [
           "➕ Agregar Nuevo Trabajador",
-          "✏️ Modificar o Eliminar Trabajador Existente",
+          "✏️ Modificar / Eliminar Trabajador Existente",
       ],
       horizontal=True,
   )
 
   if accion_trab == "➕ Agregar Nuevo Trabajador":
     with st.form("form_nuevo_trabajador", clear_on_submit=True):
-      st.write("### Ingresar Datos del Nuevo Trabajador")
+      st.write("### 1. Datos Principales y Contrato")
       c_rut = st.text_input("RUT (Ej: 12345678-9)")
       c_nombres = st.text_input("Nombres")
       c_ap1 = st.text_input("Primer Apellido")
       c_ap2 = st.text_input("Segundo Apellido")
 
-      col_t1, col_t2 = st.columns(2)
-      c_div = col_t1.text_input(
-          "División (Ej: División Chuquicamata (DCH))"
+      col_t1, col_t2, col_t3 = st.columns(3)
+      c_div = col_t1.text_input("División (Ej: DCH)")
+      c_cargo_sonda = col_t2.text_input("Cargo Sonda")
+      c_cargo_codelco = col_t3.text_input("Cargo Codelco")
+
+      col_t4, col_t5, col_t6 = st.columns(3)
+      c_num_contrato = col_t4.text_input("Número Contrato")
+      c_jornada = col_t5.text_input("Jornada Laboral")
+      c_turno = col_t6.text_input("Turno")
+
+      col_t7, col_t8, col_t9 = st.columns(3)
+      c_exp_mineria = col_t7.text_input("Experiencia Minería")
+      c_exp_cargo = col_t8.text_input("Experiencia Cargo")
+      c_odi = col_t9.text_input("Obligación de Informar (ODI)")
+
+      st.markdown("---")
+      st.write("### 2. Datos Personales y Contacto")
+      col_p1, col_p2, col_p3 = st.columns(3)
+      c_fnac = col_p1.date_input(
+          "Fecha Nacimiento", value=datetime(1990, 1, 1)
       )
-      c_cargo = col_t2.text_input("Cargo")
+      c_edad = col_p2.number_input("Edad", min_value=18, max_value=80, value=30)
+      c_sexo = col_p3.selectbox("Sexo", ["Masculino", "Femenino", "Otro"])
 
-      col_t3, col_t4 = st.columns(2)
-      c_turno = col_t3.text_input("Turno (Ej: C, 4x4, etc.)")
-      c_fono = col_t4.text_input("N° Celular")
+      col_p4, col_p5, col_p6 = st.columns(3)
+      c_ecivil = col_p4.text_input("Estado Civil")
+      c_nacionalidad = col_p5.text_input("Nacionalidad", value="Chilena")
+      c_direccion = col_p6.text_input("Dirección")
 
-      c_correo = st.text_input("Correo Electrónico")
-      c_ingreso = st.date_input("Fecha de Ingreso", datetime.now())
+      col_c1, col_c2 = st.columns(2)
+      c_cel_emp = col_c1.text_input("Celular Empresa")
+      c_cel_per = col_c2.text_input("Celular Personal")
 
-      btn_guardar_trab = st.form_submit_button("💾 Guardar Trabajador")
+      col_c3, col_c4 = st.columns(2)
+      c_mail_lab = col_c3.text_input("Correo Laboral")
+      c_mail_per = col_c4.text_input("Correo Personal")
+
+      st.markdown("---")
+      st.write("### 3. Licencias y Conducción")
+      col_l1, col_l2, col_l3 = st.columns(3)
+      c_lic_muni = col_l1.text_input("Licencia Municipal")
+      c_clase_muni = col_l2.text_input("Clase Licencia Municipal")
+      c_muni = col_l3.text_input("Municipalidad")
+
+      col_l4, col_l5 = st.columns(2)
+      c_restriccion = col_l4.text_input("Restricción")
+      c_hoja_vida = col_l5.text_input("Hoja de Vida Conductor")
+
+      st.markdown("---")
+      st.write("### 4. Salud, GES y Credenciales")
+      col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+      c_ges = col_s1.text_input("Grupo Exposición Similar (GES)")
+      c_nivel_ges = col_s2.text_input("Nivel GES")
+      c_hid = col_s3.text_input("HID Credencial")
+      c_tag = col_s4.text_input("TAG")
+
+      btn_guardar_trab = st.form_submit_button("💾 Guardar Trabajador Completo")
 
       if btn_guardar_trab:
         if not c_rut or not c_nombres:
-          st.error("El RUT y el Nombre son obligatorios.")
+          st.error("El RUT y el Nombres son obligatorios.")
         else:
           nombre_completo_val = (
               f"{c_nombres} {c_ap1} {c_ap2}".strip().upper()
@@ -573,16 +682,39 @@ elif menu == "👥 Gestionar Trabajadores":
               "apellido2": c_ap2.strip(),
               "nombre_completo": nombre_completo_val,
               "division": c_div.strip(),
-              "cargo": c_cargo.strip(),
+              "cargo": c_cargo_sonda.strip(),
+              "cargo_sonda": c_cargo_sonda.strip(),
+              "cargo_codelco": c_cargo_codelco.strip(),
+              "numero_contrato": c_num_contrato.strip(),
+              "jornada_laboral": c_jornada.strip(),
               "turno": c_turno.strip(),
-              "correo_laboral": c_correo.strip(),
-              "telefono": c_fono.strip(),
-              "fecha_ingreso": str(c_ingreso),
+              "experiencia_mineria": c_exp_mineria.strip(),
+              "experiencia_cargo": c_exp_cargo.strip(),
+              "obligacion_informar": c_odi.strip(),
+              "fecha_nacimiento": str(c_fnac),
+              "edad": int(c_edad),
+              "sexo": c_sexo,
+              "estado_civil": c_ecivil.strip(),
+              "nacionalidad": c_nacionalidad.strip(),
+              "direccion": c_direccion.strip(),
+              "celular_empresa": c_cel_emp.strip(),
+              "celular_personal": c_cel_per.strip(),
+              "correo_laboral": c_mail_lab.strip(),
+              "correo_personal": c_mail_per.strip(),
+              "licencia_municipal": c_lic_muni.strip(),
+              "clase_licencia_municipal": c_clase_muni.strip(),
+              "municipalidad": c_muni.strip(),
+              "restriccion": c_restriccion.strip(),
+              "hoja_vida_conductor": c_hoja_vida.strip(),
+              "grupo_exposicion_similar": c_ges.strip(),
+              "nivel_ges": c_nivel_ges.strip(),
+              "hid_credencial": c_hid.strip(),
+              "tag": c_tag.strip(),
           }
 
           supabase.table("trabajadores").upsert(nuevo_t_data).execute()
           st.success(
-              f"✅ ¡Trabajador {nombre_completo_val} agregado correctamente!"
+              f"✅ ¡Trabajador {nombre_completo_val} guardado con éxito!"
           )
 
   else:
@@ -596,55 +728,142 @@ elif menu == "👥 Gestionar Trabajadores":
 
     if not df_all.empty:
       sel_t_edit = st.selectbox(
-          "Seleccione el Trabajador a Editar o Dar de Baja",
+          "Seleccione el Trabajador a Editar o Eliminar",
           df_all["rut"] + " - " + df_all["nombre_completo"],
       )
       rut_edit = sel_t_edit.split(" - ")[0]
-      datos_act = df_all[df_all["rut"] == rut_edit].iloc[0]
+      d_act = df_all[df_all["rut"] == rut_edit].iloc[0]
 
       with st.form("form_editar_trabajador"):
-        st.write(f"### Editando información de: {datos_act['nombre_completo']}")
-
-        e_nombres = st.text_input(
-            "Nombres",
-            value=datos_act["nombre"] if datos_act["nombre"] else "",
+        st.write(
+            f"### ✏️ Editando Ficha Completa de: {d_act['nombre_completo']}"
         )
+
+        e_nombres = st.text_input("Nombres", value=d_act.get("nombre") or "")
         e_ap1 = st.text_input(
-            "Primer Apellido",
-            value=datos_act["apellido1"] if datos_act["apellido1"] else "",
+            "Primer Apellido", value=d_act.get("apellido1") or ""
         )
         e_ap2 = st.text_input(
-            "Segundo Apellido",
-            value=datos_act["apellido2"] if datos_act["apellido2"] else "",
+            "Segundo Apellido", value=d_act.get("apellido2") or ""
         )
 
-        col_e1, col_e2 = st.columns(2)
+        col_e1, col_e2, col_e3 = st.columns(3)
         e_div = col_e1.text_input(
-            "División",
-            value=datos_act["division"] if datos_act["division"] else "",
+            "División", value=d_act.get("division") or ""
         )
-        e_cargo = col_e2.text_input(
-            "Cargo", value=datos_act["cargo"] if datos_act["cargo"] else ""
+        e_cargo_sonda = col_e2.text_input(
+            "Cargo Sonda", value=d_act.get("cargo_sonda") or ""
         )
-
-        col_e3, col_e4 = st.columns(2)
-        e_turno = col_e3.text_input(
-            "Turno", value=datos_act["turno"] if datos_act["turno"] else ""
-        )
-        e_fono = col_e4.text_input(
-            "Teléfono",
-            value=datos_act["telefono"] if datos_act["telefono"] else "",
+        e_cargo_codelco = col_e3.text_input(
+            "Cargo Codelco", value=d_act.get("cargo_codelco") or ""
         )
 
-        e_correo = st.text_input(
-            "Correo Laboral",
-            value=datos_act["correo_laboral"]
-            if datos_act["correo_laboral"]
-            else "",
+        col_e4, col_e5, col_e6 = st.columns(3)
+        e_contrato = col_e4.text_input(
+            "N° Contrato", value=d_act.get("numero_contrato") or ""
         )
+        e_jornada = col_e5.text_input(
+            "Jornada Laboral", value=d_act.get("jornada_laboral") or ""
+        )
+        e_turno = col_e6.text_input("Turno", value=d_act.get("turno") or "")
+
+        col_e7, col_e8, col_e9 = st.columns(3)
+        e_exp_min = col_e7.text_input(
+            "Experiencia Minería",
+            value=d_act.get("experiencia_mineria") or "",
+        )
+        e_exp_car = col_e8.text_input(
+            "Experiencia Cargo", value=d_act.get("experiencia_cargo") or ""
+        )
+        e_odi = col_e9.text_input(
+            "ODI", value=d_act.get("obligacion_informar") or ""
+        )
+
+        st.markdown("#### Contacto y Datos Personales")
+        col_ep1, col_ep2, col_ep3 = st.columns(3)
+        # Parse fecha nacimiento
+        try:
+          f_nac_val = datetime.strptime(
+              str(d_act.get("fecha_nacimiento")).split("T")[0], "%Y-%m-%d"
+          ).date()
+        except:
+          f_nac_val = datetime(1990, 1, 1).date()
+
+        e_fnac = col_ep1.date_input("Fecha Nacimiento", value=f_nac_val)
+        e_edad = col_ep2.number_input(
+            "Edad",
+            min_value=18,
+            max_value=80,
+            value=int(d_act.get("edad")) if pd.notna(d_act.get("edad")) else 30,
+        )
+        e_sexo = col_ep3.selectbox(
+            "Sexo",
+            ["Masculino", "Femenino", "Otro"],
+            index=0
+            if str(d_act.get("sexo")) == "Masculino"
+            else (1 if str(d_act.get("sexo")) == "Femenino" else 0),
+        )
+
+        col_ep4, col_ep5, col_ep6 = st.columns(3)
+        e_ecivil = col_ep4.text_input(
+            "Estado Civil", value=d_act.get("estado_civil") or ""
+        )
+        e_naci = col_ep5.text_input(
+            "Nacionalidad", value=d_act.get("nacionalidad") or ""
+        )
+        e_dir = col_ep6.text_input(
+            "Dirección", value=d_act.get("direccion") or ""
+        )
+
+        col_ec1, col_ec2, col_ec3, col_ec4 = st.columns(4)
+        e_cel_emp = col_ec1.text_input(
+            "Celular Empresa", value=d_act.get("celular_empresa") or ""
+        )
+        e_cel_per = col_ec2.text_input(
+            "Celular Personal", value=d_act.get("celular_personal") or ""
+        )
+        e_mail_lab = col_ec3.text_input(
+            "Correo Laboral", value=d_act.get("correo_laboral") or ""
+        )
+        e_mail_per = col_ec4.text_input(
+            "Correo Personal", value=d_act.get("correo_personal") or ""
+        )
+
+        st.markdown("#### Licencias y Conducción")
+        col_el1, col_el2, col_el3, col_el4, col_el5 = st.columns(5)
+        e_lic_mun = col_el1.text_input(
+            "Licencia Municipal", value=d_act.get("licencia_municipal") or ""
+        )
+        e_clase = col_el2.text_input(
+            "Clase Licencia",
+            value=d_act.get("clase_licencia_municipal") or "",
+        )
+        e_muni = col_el3.text_input(
+            "Municipalidad", value=d_act.get("municipalidad") or ""
+        )
+        e_rest = col_el4.text_input(
+            "Restricción", value=d_act.get("restriccion") or ""
+        )
+        e_hvc = col_el5.text_input(
+            "Hoja Vida Conductor",
+            value=d_act.get("hoja_vida_conductor") or "",
+        )
+
+        st.markdown("#### Salud y GES")
+        col_es1, col_es2, col_es3, col_es4 = st.columns(4)
+        e_ges = col_es1.text_input(
+            "GES", value=d_act.get("grupo_exposicion_similar") or ""
+        )
+        e_nges = col_es2.text_input(
+            "Nivel GES", value=d_act.get("nivel_ges") or ""
+        )
+        e_hid = col_es3.text_input(
+            "HID Credencial", value=d_act.get("hid_credencial") or ""
+        )
+        e_tag = col_es4.text_input("TAG", value=d_act.get("tag") or "")
 
         col_b1, col_b2 = st.columns(2)
-        btn_act_t = col_b1.form_submit_button("💾 Actualizar Datos")
+        btn_act_t = col_b1.form_submit_button("💾 Actualizar Ficha Completa")
         btn_del_t = col_b2.form_submit_button(
             "🗑️ Eliminar Trabajador (y sus registros)"
         )
@@ -657,33 +876,52 @@ elif menu == "👥 Gestionar Trabajadores":
               "apellido2": e_ap2.strip(),
               "nombre_completo": nc_val,
               "division": e_div.strip(),
-              "cargo": e_cargo.strip(),
+              "cargo": e_cargo_sonda.strip(),
+              "cargo_sonda": e_cargo_sonda.strip(),
+              "cargo_codelco": e_cargo_codelco.strip(),
+              "numero_contrato": e_contrato.strip(),
+              "jornada_laboral": e_jornada.strip(),
               "turno": e_turno.strip(),
-              "correo_laboral": e_correo.strip(),
-              "telefono": e_fono.strip(),
+              "experiencia_mineria": e_exp_min.strip(),
+              "experiencia_cargo": e_exp_car.strip(),
+              "obligacion_informar": e_odi.strip(),
+              "fecha_nacimiento": str(e_fnac),
+              "edad": int(e_edad),
+              "sexo": e_sexo,
+              "estado_civil": e_ecivil.strip(),
+              "nacionalidad": e_naci.strip(),
+              "direccion": e_dir.strip(),
+              "celular_empresa": e_cel_emp.strip(),
+              "celular_personal": e_cel_per.strip(),
+              "correo_laboral": e_mail_lab.strip(),
+              "correo_personal": e_mail_per.strip(),
+              "licencia_municipal": e_lic_mun.strip(),
+              "clase_licencia_municipal": e_clase.strip(),
+              "municipalidad": e_muni.strip(),
+              "restriccion": e_rest.strip(),
+              "hoja_vida_conductor": e_hvc.strip(),
+              "grupo_exposicion_similar": e_ges.strip(),
+              "nivel_ges": e_nges.strip(),
+              "hid_credencial": e_hid.strip(),
+              "tag": e_tag.strip(),
           }).eq("rut", rut_edit).execute()
-          st.success("✅ ¡Datos del trabajador actualizados con éxito!")
+          st.success("✅ ¡Ficha completa actualizada con éxito!")
           st.rerun()
 
         if btn_del_t:
           supabase.table("trabajadores").delete().eq(
               "rut", rut_edit
           ).execute()
-          st.warning(
-              "🗑️ Trabajador y todos sus registros asociados eliminados."
-          )
+          st.warning("🗑️ Trabajador eliminado del sistema.")
           st.rerun()
     else:
       st.info("No hay trabajadores en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 5: PANEL DE ALERTAS Y VENCIMIENTOS
+# OPCIÓN 5: PANEL DE ALERTAS
 # -------------------------------------------------------------------
 elif menu == "⚠️ Panel de Alertas y Vencimientos":
-  st.subheader(
-      "⚠️ Panel General de Alertas (Exámenes y Cursos Próximos a Vencer o"
-      " Vencidos)"
-  )
+  st.subheader("⚠️ Panel General de Alertas (Exámenes y Cursos)")
 
   res = (
       supabase.table("registros_capacitaciones")
@@ -742,8 +980,6 @@ elif menu == "⚠️ Panel de Alertas y Vencimientos":
     if not df_filtrado.empty:
       st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
     else:
-      st.success(
-          "🎉 ¡Excelente noticia! No hay registros en los estados seleccionados."
-      )
+      st.success("🎉 ¡No hay registros en los estados seleccionados!")
   else:
-    st.info("Aún no hay registros de capacitaciones cargados en el sistema.")
+    st.info("Aún no hay registros cargados en el sistema.")
