@@ -10,9 +10,12 @@ st.set_page_config(
     page_icon="📋",
 )
 
-# --- CONFIGURACIÓN DE CREDENCIALES DE ACCESO ---
-USUARIO_CORRECTO = "admin"
-PASSWORD_CORRECTO = "Sonda2026!"
+# --- CONFIGURACIÓN DE USUARIOS Y ROLES ---
+# Puedes agregar más usuarios a este diccionario según lo requieras
+USUARIOS = {
+    "admin": {"password": "Sond@.2026", "rol": "admin", "nombre": "Administrador"},
+    "consulta": {"password": "Visor2026!", "rol": "visor", "nombre": "Usuario Lectura"},
+}
 
 # --- ESTILOS CSS PERSONALIZADOS ---
 st.markdown(
@@ -69,6 +72,8 @@ supabase = init_supabase()
 # --- GESTIÓN DE SESIÓN (LOGIN) ---
 if "autenticado" not in st.session_state:
   st.session_state["autenticado"] = False
+  st.session_state["usuario_actual"] = None
+  st.session_state["rol"] = None
 
 
 def mostrar_login():
@@ -83,17 +88,19 @@ def mostrar_login():
     st.subheader("Sistema de Control de Exámenes y Capacitaciones")
 
     with st.form("form_login"):
-      usuario = st.text_input("Usuario")
-      password = st.text_input("Contraseña", type="password")
+      usuario_input = st.text_input("Usuario").strip()
+      password_input = st.text_input("Contraseña", type="password").strip()
       btn_login = st.form_submit_button("🔑 Iniciar Sesión")
 
       if btn_login:
         if (
-            usuario.strip() == USUARIO_CORRECTO
-            and password.strip() == PASSWORD_CORRECTO
+            usuario_input in USUARIOS
+            and USUARIOS[usuario_input]["password"] == password_input
         ):
           st.session_state["autenticado"] = True
-          st.success("¡Acceso concedido!")
+          st.session_state["usuario_actual"] = USUARIOS[usuario_input]["nombre"]
+          st.session_state["rol"] = USUARIOS[usuario_input]["rol"]
+          st.success(f"¡Bienvenido, {USUARIOS[usuario_input]['nombre']}!")
           st.rerun()
         else:
           st.error("❌ Usuario o contraseña incorrectos.")
@@ -104,32 +111,45 @@ if not st.session_state["autenticado"]:
   st.stop()
 
 # -------------------------------------------------------------------
-# SISTEMA PRINCIPAL
+# SISTEMA PRINCIPAL Y NAVEGACIÓN SEGÚN ROL
 # -------------------------------------------------------------------
 
 st.title("🛡️ Sistema de Gestión de Exámenes y Cursos - Sonda")
 
 st.sidebar.markdown("### 👤 Sesión Iniciada")
-st.sidebar.write(f"**Usuario:** `{USUARIO_CORRECTO}`")
+st.sidebar.write(f"**Usuario:** `{st.session_state['usuario_actual']}`")
+st.sidebar.write(
+    f"**Rol:** `{'Administrador (Edición)' if st.session_state['rol'] == 'admin' else 'Visor (Solo Lectura)'}`"
+)
+
 if st.sidebar.button("🚪 Cerrar Sesión"):
   st.session_state["autenticado"] = False
+  st.session_state["usuario_actual"] = None
+  st.session_state["rol"] = None
   st.rerun()
 
 st.sidebar.markdown("---")
 
-menu = st.sidebar.radio(
-    "Navegación",
-    [
-        "📊 Ficha de Trabajador y Documentos",
-        "➕ Registrar Examen / Curso",
-        "✏️ Actualizar / Renovar Exámenes",
-        "👥 Gestionar Trabajadores",
-        "⚠️ Panel de Alertas y Vencimientos",
-    ],
-)
+# Definición de Menú disponible según permisos
+if st.session_state["rol"] == "admin":
+  opciones_menu = [
+      "📊 Ficha de Trabajador y Documentos",
+      "➕ Registrar Examen / Curso",
+      "✏️ Actualizar / Renovar Exámenes",
+      "👥 Gestionar Trabajadores",
+      "⚠️ Panel de Alertas y Vencimientos",
+  ]
+else:
+  # Para el rol 'visor' ocultamos los formularios de registro y edición
+  opciones_menu = [
+      "📊 Ficha de Trabajador y Documentos",
+      "⚠️ Panel de Alertas y Vencimientos",
+  ]
+
+menu = st.sidebar.radio("Navegación", opciones_menu)
 
 # -------------------------------------------------------------------
-# OPCIÓN 1: FICHA DETALLADA DE TRABAJADOR
+# OPCIÓN 1: FICHA DETALLADA DE TRABAJADOR (DISPONIBLE PARA AMBOS ROLES)
 # -------------------------------------------------------------------
 if menu == "📊 Ficha de Trabajador y Documentos":
   st.subheader("🔍 Búsqueda de Trabajador")
@@ -267,6 +287,10 @@ if menu == "📊 Ficha de Trabajador y Documentos":
       col_g, col_h = st.columns(2)
       with col_g:
         st.write(
+            f"**Grupo Sanguíneo:**"
+            f" `{trab.get('grupo_sanguineo') or 'N/A'}`"
+        )
+        st.write(
             f"**Grupo Exposición Similar (GES):**"
             f" {trab.get('grupo_exposicion_similar') or 'N/A'}"
         )
@@ -324,7 +348,7 @@ if menu == "📊 Ficha de Trabajador y Documentos":
       )
 
 # -------------------------------------------------------------------
-# OPCIÓN 2: REGISTRAR EXAMEN / CURSO
+# OPCIÓN 2: REGISTRAR EXAMEN / CURSO (SOLO ADMIN)
 # -------------------------------------------------------------------
 elif menu == "➕ Registrar Examen / Curso":
   st.subheader("📝 Nuevo Registro de Capacitación o Examen")
@@ -421,7 +445,7 @@ elif menu == "➕ Registrar Examen / Curso":
         )
 
 # -------------------------------------------------------------------
-# OPCIÓN 3: ACTUALIZAR / RENOVACIÓN
+# OPCIÓN 3: ACTUALIZAR / RENOVACIÓN (SOLO ADMIN)
 # -------------------------------------------------------------------
 elif menu == "✏️ Actualizar / Renovar Exámenes":
   st.subheader(
@@ -586,7 +610,7 @@ elif menu == "✏️ Actualizar / Renovar Exámenes":
     st.info("No hay trabajadores registrados en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 4: GESTIONAR TRABAJADORES (CON TODOS LOS CAMPOS DE LA PLANILLA)
+# OPCIÓN 4: GESTIONAR TRABAJADORES (SOLO ADMIN)
 # -------------------------------------------------------------------
 elif menu == "👥 Gestionar Trabajadores":
   st.subheader(
@@ -660,11 +684,14 @@ elif menu == "👥 Gestionar Trabajadores":
 
       st.markdown("---")
       st.write("### 4. Salud, GES y Credenciales")
-      col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-      c_ges = col_s1.text_input("Grupo Exposición Similar (GES)")
-      c_nivel_ges = col_s2.text_input("Nivel GES")
-      c_hid = col_s3.text_input("HID Credencial")
-      c_tag = col_s4.text_input("TAG")
+      col_s1, col_s2, col_s3 = st.columns(3)
+      c_sangre = col_s1.text_input("Grupo Sanguíneo (Ej: O RH(+), A II NEG)")
+      c_ges = col_s2.text_input("Grupo Exposición Similar (GES)")
+      c_nivel_ges = col_s3.text_input("Nivel GES")
+
+      col_s4, col_s5 = st.columns(2)
+      c_hid = col_s4.text_input("HID Credencial")
+      c_tag = col_s5.text_input("TAG")
 
       btn_guardar_trab = st.form_submit_button("💾 Guardar Trabajador Completo")
 
@@ -706,6 +733,7 @@ elif menu == "👥 Gestionar Trabajadores":
               "municipalidad": c_muni.strip(),
               "restriccion": c_restriccion.strip(),
               "hoja_vida_conductor": c_hoja_vida.strip(),
+              "grupo_sanguineo": c_sangre.strip(),
               "grupo_exposicion_similar": c_ges.strip(),
               "nivel_ges": c_nivel_ges.strip(),
               "hid_credencial": c_hid.strip(),
@@ -781,7 +809,6 @@ elif menu == "👥 Gestionar Trabajadores":
 
         st.markdown("#### Contacto y Datos Personales")
         col_ep1, col_ep2, col_ep3 = st.columns(3)
-        # Parse fecha nacimiento
         try:
           f_nac_val = datetime.strptime(
               str(d_act.get("fecha_nacimiento")).split("T")[0], "%Y-%m-%d"
@@ -850,17 +877,20 @@ elif menu == "👥 Gestionar Trabajadores":
         )
 
         st.markdown("#### Salud y GES")
-        col_es1, col_es2, col_es3, col_es4 = st.columns(4)
-        e_ges = col_es1.text_input(
+        col_es1, col_es2, col_es3, col_es4, col_es5 = st.columns(5)
+        e_sangre = col_es1.text_input(
+            "Grupo Sanguíneo", value=d_act.get("grupo_sanguineo") or ""
+        )
+        e_ges = col_es2.text_input(
             "GES", value=d_act.get("grupo_exposicion_similar") or ""
         )
-        e_nges = col_es2.text_input(
+        e_nges = col_es3.text_input(
             "Nivel GES", value=d_act.get("nivel_ges") or ""
         )
-        e_hid = col_es3.text_input(
+        e_hid = col_es4.text_input(
             "HID Credencial", value=d_act.get("hid_credencial") or ""
         )
-        e_tag = col_es4.text_input("TAG", value=d_act.get("tag") or "")
+        e_tag = col_es5.text_input("TAG", value=d_act.get("tag") or "")
 
         col_b1, col_b2 = st.columns(2)
         btn_act_t = col_b1.form_submit_button("💾 Actualizar Ficha Completa")
@@ -900,6 +930,7 @@ elif menu == "👥 Gestionar Trabajadores":
               "municipalidad": e_muni.strip(),
               "restriccion": e_rest.strip(),
               "hoja_vida_conductor": e_hvc.strip(),
+              "grupo_sanguineo": e_sangre.strip(),
               "grupo_exposicion_similar": e_ges.strip(),
               "nivel_ges": e_nges.strip(),
               "hid_credencial": e_hid.strip(),
@@ -918,7 +949,7 @@ elif menu == "👥 Gestionar Trabajadores":
       st.info("No hay trabajadores en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 5: PANEL DE ALERTAS
+# OPCIÓN 5: PANEL DE ALERTAS (DISPONIBLE PARA AMBOS ROLES)
 # -------------------------------------------------------------------
 elif menu == "⚠️ Panel de Alertas y Vencimientos":
   st.subheader("⚠️ Panel General de Alertas (Exámenes y Cursos)")
