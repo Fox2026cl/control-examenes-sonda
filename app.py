@@ -11,10 +11,9 @@ st.set_page_config(
 )
 
 # --- CONFIGURACIÓN DE USUARIOS Y ROLES ---
-# Puedes agregar más usuarios a este diccionario según lo requieras
 USUARIOS = {
     "admin": {"password": "Sond@.2026", "rol": "admin", "nombre": "Administrador"},
-    "consulta": {"password": "Visor2026!", "rol": "visor", "nombre": "Usuario Lectura"},
+    "consulta": {"password": "VisorSonda2026!", "rol": "visor", "nombre": "Usuario Lectura"},
 }
 
 # --- ESTILOS CSS PERSONALIZADOS ---
@@ -130,7 +129,6 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 
 st.sidebar.markdown("---")
 
-# Definición de Menú disponible según permisos
 if st.session_state["rol"] == "admin":
   opciones_menu = [
       "📊 Ficha de Trabajador y Documentos",
@@ -140,7 +138,6 @@ if st.session_state["rol"] == "admin":
       "⚠️ Panel de Alertas y Vencimientos",
   ]
 else:
-  # Para el rol 'visor' ocultamos los formularios de registro y edición
   opciones_menu = [
       "📊 Ficha de Trabajador y Documentos",
       "⚠️ Panel de Alertas y Vencimientos",
@@ -149,7 +146,7 @@ else:
 menu = st.sidebar.radio("Navegación", opciones_menu)
 
 # -------------------------------------------------------------------
-# OPCIÓN 1: FICHA DETALLADA DE TRABAJADOR (DISPONIBLE PARA AMBOS ROLES)
+# OPCIÓN 1: FICHA DETALLADA DE TRABAJADOR
 # -------------------------------------------------------------------
 if menu == "📊 Ficha de Trabajador y Documentos":
   st.subheader("🔍 Búsqueda de Trabajador")
@@ -610,12 +607,10 @@ elif menu == "✏️ Actualizar / Renovar Exámenes":
     st.info("No hay trabajadores registrados en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 4: GESTIONAR TRABAJADORES (SOLO ADMIN)
+# OPCIÓN 4: GESTIONAR TRABAJADORES (CON FECHA DE INGRESO INCLUIDA)
 # -------------------------------------------------------------------
 elif menu == "👥 Gestionar Trabajadores":
-  st.subheader(
-      "👥 Administración del Personal (Ficha Completa - Columnas FD a GF)"
-  )
+  st.subheader("👥 Administración del Personal (Ficha Completa)")
 
   accion_trab = st.radio(
       "Seleccione Acción",
@@ -641,13 +636,15 @@ elif menu == "👥 Gestionar Trabajadores":
 
       col_t4, col_t5, col_t6 = st.columns(3)
       c_num_contrato = col_t4.text_input("Número Contrato")
-      c_jornada = col_t5.text_input("Jornada Laboral")
-      c_turno = col_t6.text_input("Turno")
+      c_fingreso = col_t5.date_input("Fecha de Ingreso", value=datetime.now())
+      c_jornada = col_t6.text_input("Jornada Laboral")
 
       col_t7, col_t8, col_t9 = st.columns(3)
-      c_exp_mineria = col_t7.text_input("Experiencia Minería")
-      c_exp_cargo = col_t8.text_input("Experiencia Cargo")
-      c_odi = col_t9.text_input("Obligación de Informar (ODI)")
+      c_turno = col_t7.text_input("Turno")
+      c_exp_mineria = col_t8.text_input("Experiencia Minería")
+      c_exp_cargo = col_t9.text_input("Experiencia Cargo")
+
+      c_odi = st.text_input("Obligación de Informar (ODI)")
 
       st.markdown("---")
       st.write("### 2. Datos Personales y Contacto")
@@ -713,6 +710,7 @@ elif menu == "👥 Gestionar Trabajadores":
               "cargo_sonda": c_cargo_sonda.strip(),
               "cargo_codelco": c_cargo_codelco.strip(),
               "numero_contrato": c_num_contrato.strip(),
+              "fecha_ingreso": str(c_fingreso),
               "jornada_laboral": c_jornada.strip(),
               "turno": c_turno.strip(),
               "experiencia_mineria": c_exp_mineria.strip(),
@@ -790,20 +788,31 @@ elif menu == "👥 Gestionar Trabajadores":
         e_contrato = col_e4.text_input(
             "N° Contrato", value=d_act.get("numero_contrato") or ""
         )
-        e_jornada = col_e5.text_input(
+
+        # Parse fecha ingreso
+        try:
+          f_ing_val = datetime.strptime(
+              str(d_act.get("fecha_ingreso")).split("T")[0], "%Y-%m-%d"
+          ).date()
+        except:
+          f_ing_val = datetime.now().date()
+
+        e_fingreso = col_e5.date_input("Fecha Ingreso", value=f_ing_val)
+        e_jornada = col_e6.text_input(
             "Jornada Laboral", value=d_act.get("jornada_laboral") or ""
         )
-        e_turno = col_e6.text_input("Turno", value=d_act.get("turno") or "")
 
         col_e7, col_e8, col_e9 = st.columns(3)
-        e_exp_min = col_e7.text_input(
+        e_turno = col_e7.text_input("Turno", value=d_act.get("turno") or "")
+        e_exp_min = col_e8.text_input(
             "Experiencia Minería",
             value=d_act.get("experiencia_mineria") or "",
         )
-        e_exp_car = col_e8.text_input(
+        e_exp_car = col_e9.text_input(
             "Experiencia Cargo", value=d_act.get("experiencia_cargo") or ""
         )
-        e_odi = col_e9.text_input(
+
+        e_odi = st.text_input(
             "ODI", value=d_act.get("obligacion_informar") or ""
         )
 
@@ -910,6 +919,7 @@ elif menu == "👥 Gestionar Trabajadores":
               "cargo_sonda": e_cargo_sonda.strip(),
               "cargo_codelco": e_cargo_codelco.strip(),
               "numero_contrato": e_contrato.strip(),
+              "fecha_ingreso": str(e_fingreso),
               "jornada_laboral": e_jornada.strip(),
               "turno": e_turno.strip(),
               "experiencia_mineria": e_exp_min.strip(),
@@ -949,7 +959,7 @@ elif menu == "👥 Gestionar Trabajadores":
       st.info("No hay trabajadores en la base de datos.")
 
 # -------------------------------------------------------------------
-# OPCIÓN 5: PANEL DE ALERTAS (DISPONIBLE PARA AMBOS ROLES)
+# OPCIÓN 5: PANEL DE ALERTAS
 # -------------------------------------------------------------------
 elif menu == "⚠️ Panel de Alertas y Vencimientos":
   st.subheader("⚠️ Panel General de Alertas (Exámenes y Cursos)")
