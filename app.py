@@ -13,7 +13,7 @@ st.set_page_config(
 # --- CONFIGURACIÓN DE USUARIOS Y ROLES ---
 USUARIOS = {
     "admin": {"password": "Sond@.2026", "rol": "admin", "nombre": "Administrador"},
-    "consulta": {"password": "VisorSonda2026!", "rol": "visor", "nombre": "Usuario Lectura"},
+    "consulta": {"password": "Visor2026!", "rol": "visor", "nombre": "Usuario Lectura"},
 }
 
 # --- ESTILOS CSS PERSONALIZADOS ---
