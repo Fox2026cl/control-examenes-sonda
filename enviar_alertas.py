@@ -31,7 +31,7 @@ if faltantes:
   sys.exit(1)
 
 # Destinatarios del reporte
-DESTINATARIOS = ["miguel.alquinta@gmail.com","control.prevencionderiesgos@gmail.com"]
+DESTINATARIOS = ["miguel.alquinta@gmail.com","control.prevencionderiesgos@gmail.com","miguel.alquinta@sonda.com","roylester.briceno@sonda.com","ruben.araya@sonda.com","cinthya.bartolome@sonda.com"]
 
 
 def generar_reporte_y_enviar():
